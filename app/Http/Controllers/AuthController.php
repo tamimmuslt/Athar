@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\Volunteer;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -123,5 +124,42 @@ public function login(Request $request)
 }
 
 
+public function adminLogin(Request $request)
+{
+    $validator = Validator::make($request->all(), [
+        'email' => 'required|email',
+        'password' => 'required',
+    ]);
+
+    if ($validator->fails()) {
+        return response()->json($validator->errors(), 422);
+    }
+
+    // 1. فحص هل المستخدم موجود أصلاً
+    $admin = User::where('email', $request->email)->first();
+
+    if (!$admin) {
+        return response()->json(['message' => 'الإيميل غير موجود في قاعدة البيانات'], 404);
+    }
+
+    // 2. فحص كلمة المرور مع طباعة قيمتها في حال الفشل (للتأكد فقط)
+    if (!Hash::check($request->password, $admin->password)) {
+        // إذا وصلت لهنا، يعني الإيميل صح بس التشفير في القاعدة لسه فيه مشكلة
+        return response()->json([
+            'message' => 'كلمة المرور غير مطابقة للمشفرة في القاعدة',
+            'debug_provided_password' => $request->password,
+            'debug_stored_hash' => $admin->password // قارن هذا النص بما وضعته في SQL
+        ], 401);
+    }
+
+    // 3. إصدار التوكن
+    $token = $admin->createToken('admin_token')->plainTextToken;
+
+    return response()->json([
+        'message' => 'أهلاً بك يا أدمن، تم تسجيل الدخول',
+        'access_token' => $token,
+        'user' => $admin
+    ]);
+}
 
 }

@@ -9,29 +9,25 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-   public function up():void
-   {
-    Schema:: create('volunteers',function(Blueprint $table){
- 
-        $table->id();
-        $table->string('full_name');
-        $table->string('email')->unique();
-        $table->string('password');
-        $table->string('phone')->nullable();
-        $table->string('city')->nullable();
-        $table->text('bio')->nullable();
-        $table->string('profile_picture')->nullable();
-        $table->string('verification_code')->nullable();
-        $table->timestamp('email_verified_at')->nullable();
-        $table->timestamps();
-    });
-   }
-     /* Reverse the migrations.
+    public function up(): void
+    {
+        // هذا الجدول سيبقى للأدمن فقط
+        Schema::create('users', function (Blueprint $table) {
+            $table->id();
+            $table->string('name'); // اسم الأدمن
+            $table->string('email')->unique(); // إيميل الدخول للوحة التحكم
+            $table->timestamp('email_verified_at')->nullable();
+            $table->string('password');
+            $table->rememberToken();
+            $table->timestamps();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
      */
     public function down(): void
     {
         Schema::dropIfExists('users');
-        Schema::dropIfExists('password_reset_tokens');
-        Schema::dropIfExists('sessions');
     }
 };
