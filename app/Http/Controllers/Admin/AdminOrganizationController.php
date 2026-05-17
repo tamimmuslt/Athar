@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Organization;
 use App\Notifications\OrganizationStatusNotification;
+
 class AdminOrganizationController extends Controller
 {
+
 public function updateStatus(Request $request, $id)
 {
     $request->validate([
@@ -18,7 +20,6 @@ public function updateStatus(Request $request, $id)
     $org->status = $request->status;
     $org->save();
 
-    // إرسال الإشعار للمؤسسة
     $org->notify(new OrganizationStatusNotification($request->status));
 
     return response()->json([

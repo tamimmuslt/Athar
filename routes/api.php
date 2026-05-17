@@ -13,6 +13,7 @@ Route::prefix('volunteer')->group(function () {
     Route::post('/resend-code', [AuthController::class, 'resendCode']);
     Route::post('/login', [AuthController::class, 'login']);
 });
+
 /*
 مؤسسة
 */
@@ -22,6 +23,10 @@ Route::prefix('organization')->group(function () {
     Route::post('/login', [OrganizationAuthController::class, 'login']);
 });
 
+
+/*
+admin
+*/
 Route::post('/admin/login', [AuthController::class, 'adminLogin']);
 
 Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
@@ -36,3 +41,4 @@ Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
 Route::middleware('auth:sanctum')->get('/admin/unread-notifications', function () {
     return auth()->user()->unreadNotifications;
 });
+

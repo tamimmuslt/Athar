@@ -11,40 +11,108 @@ use App\Notifications\NewOrganizationRegistered;
 use App\Notifications\NewOrgRequest;
 class OrganizationAuthController extends Controller
 {
-    public function register(Request $request)
+
+//     public function register(Request $request)
+// {
+//     $validator = Validator::make($request->all(), [
+//         'org_name' => 'required|string|max:255',
+//         'official_email' => 'required|email|unique:organizations,official_email',
+//         'password' => 'required|min:8',
+//         'phone_number' => 'required',
+//         'address' => 'required',
+//         'org_description' => 'required',
+//         'document' => 'required|file|mimes:pdf,jpg,png|max:2048',
+//     ]);
+
+//     if ($validator->fails()) {
+//         return response()->json($validator->errors(), 422);
+//     }
+
+//     // رفع الملف وتخزينه
+//     $documentPath = $request->file('document')->store('verification_documents', 'public');
+
+//     $organization = Organization::create([
+//         'org_name' => $request->org_name,
+//         'official_email' => $request->official_email,
+//         'password' => Hash::make($request->password),
+//         'phone_number' => $request->phone_number,
+//         'address' => $request->address,
+//         'org_description' => $request->org_description,
+//         'verification_document' => $documentPath,
+//         'status' => 'pending', 
+//     ]);
+// $admin = User::first(); 
+
+//     if ($admin) {
+//         $admin->notify(new NewOrgRequest($organization));
+//     }
+//     return response()->json([
+//         'message' => 'Registration Request Submitted! Your account is under review.',
+//     ], 201);
+// }
+public function register(Request $request)
 {
     $validator = Validator::make($request->all(), [
-        'org_name' => 'required|string|max:255',
-        'official_email' => 'required|email|unique:organizations,official_email',
-        'password' => 'required|min:8',
-        'phone_number' => 'required',
-        'address' => 'required',
+        'org_name'        => 'required|string|max:255',
+        'official_email'  => 'required|email|unique:organizations,official_email',
+        'password'        => 'required|min:8',
+        'phone_number'    => 'required',
+        'address'         => 'required',
         'org_description' => 'required',
-        'document' => 'required|file|mimes:pdf,jpg,png|max:2048', // الوثائق المطلوبة
+        'document'        => 'required', 
+        'website_link'    => 'nullable|url',
     ]);
 
     if ($validator->fails()) {
         return response()->json($validator->errors(), 422);
     }
 
-    // رفع الملف وتخزينه
-    $documentPath = $request->file('document')->store('verification_documents', 'public');
+    $documentPath = null;
+
+    if ($request->hasFile('document')) {
+        
+        $fileValidator = Validator::make($request->all(), [
+            'document' => 'file|mimes:pdf,jpg,png|max:2048'
+        ]);
+
+        if ($fileValidator->fails()) {
+            return response()->json($fileValidator->errors(), 422);
+        }
+
+       $documentPath = $request->file('document')->store('verification_documents', 'public');
+
+    } else {
+       $urlValidator = Validator::make($request->all(), [
+            'document' => 'url'
+        ]);
+
+        if ($urlValidator->fails()) {
+            return response()->json([
+                'document' => ['يجب إدخال ملف (PDF, JPG, PNG) أو رابط إلكتروني (URL) صالح.']
+            ], 422);
+        }
+
+        $documentPath = $request->document;
+    }
 
     $organization = Organization::create([
-        'org_name' => $request->org_name,
-        'official_email' => $request->official_email,
-        'password' => Hash::make($request->password),
-        'phone_number' => $request->phone_number,
-        'address' => $request->address,
-        'org_description' => $request->org_description,
-        'verification_document' => $documentPath,
-        'status' => 'pending', 
+        'org_name'              => $request->org_name,
+        'official_email'        => $request->official_email,
+        'password'              => Hash::make($request->password),
+        'phone_number'          => $request->phone_number,
+        'address'               => $request->address,
+        'org_description'       => $request->org_description,
+        'verification_document' => $documentPath, 
+        'website_link'          => $request->website_link,
+        'status'                => 'pending', 
     ]);
-$admin = User::first(); 
+
+    $admin = User::first(); 
 
     if ($admin) {
         $admin->notify(new NewOrgRequest($organization));
     }
+
     return response()->json([
         'message' => 'Registration Request Submitted! Your account is under review.',
     ], 201);
