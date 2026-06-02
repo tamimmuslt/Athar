@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\OrganizationAuthController;
 use App\Http\Controllers\Admin\AdminOrganizationController;
-
+use App\Http\Controllers\Volunteer\NotificationController;
 
 
 Route::prefix('volunteer')->group(function () {
@@ -12,8 +12,19 @@ Route::prefix('volunteer')->group(function () {
     Route::post('/verify-code', [AuthController::class, 'verifyCode']);
     Route::post('/resend-code', [AuthController::class, 'resendCode']);
     Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
+    Route::post('/verify-reset-code', [AuthController::class, 'verifyResetCode']);
+    Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 });
-
+Route::middleware('auth:sanctum')->group(function () {
+        Route::get('/profile', [AuthController::class, 'getProfile']);        
+        Route::post('/profile/update', [AuthController::class, 'updateProfile']); 
+        Route::get('/hours', [AuthController::class, 'getVolunteerHours']); 
+        Route::get('/certificates', [AuthController::class, 'getCertificates']);
+        Route::get('/notifications', [NotificationController::class, 'index']);
+        Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+        Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
+    });
 /*
 مؤسسة
 */
