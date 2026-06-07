@@ -9,7 +9,7 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-   public function up(): void
+public function up(): void
 {
     Schema::create('organizations', function (Blueprint $table) {
         $table->id();
@@ -20,6 +20,10 @@ return new class extends Migration
         $table->string('address');
         $table->text('org_description');
         $table->string('verification_document')->nullable(); 
+        
+        // الحقول الجديدة التي أضفناها لتطابق التصاميم والـ Seeder
+        $table->string('website_link')->nullable(); // رابط الموقع الإلكتروني
+        $table->string('logo')->nullable();         // شعار المؤسسة
         
         $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');
         

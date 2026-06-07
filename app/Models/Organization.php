@@ -7,7 +7,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-
+use App\Models\Campaign;
 class Organization extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
@@ -57,5 +57,10 @@ public function routeNotificationForMail($notification)
     public function isApproved()
     {
         return $this->status === 'approved';
+    }
+
+public function campaigns()
+    {
+        return $this->hasMany(Campaign::class);
     }
 }

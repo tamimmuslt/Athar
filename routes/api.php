@@ -5,7 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\OrganizationAuthController;
 use App\Http\Controllers\Admin\AdminOrganizationController;
 use App\Http\Controllers\Volunteer\NotificationController;
-
+use App\Http\Controllers\Volunteer\OrganizationController;
 
 Route::prefix('volunteer')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
@@ -15,6 +15,8 @@ Route::prefix('volunteer')->group(function () {
     Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
     Route::post('/verify-reset-code', [AuthController::class, 'verifyResetCode']);
     Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+    Route::get('/organizations', [OrganizationController::class, 'index']);
+    Route::get('/organizations/{id}', [OrganizationController::class, 'show']);
 });
 Route::middleware('auth:sanctum')->group(function () {
         Route::get('/profile', [AuthController::class, 'getProfile']);        
