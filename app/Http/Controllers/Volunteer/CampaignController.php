@@ -13,10 +13,8 @@ class CampaignController extends Controller
 {
     public function index(Request $request)
     {
-        // جلب الحملات النشطة مع بيانات المؤسسة التابعة لها
         $query = Campaign::where('status', 'active')->with('organization');
 
-        // ميزة البحث بالاسم إذا استخدم المتطوع شريط البحث بالواجهة
         if ($request->has('search') && !is_null($request->search)) {
             $query->where('title', 'LIKE', '%' . $request->search . '%');
         }
@@ -24,111 +22,129 @@ class CampaignController extends Controller
         $campaigns = $query->orderBy('created_at', 'desc')->get()->map(function ($campaign) {
             return [
                 'id'            => $campaign->id,
-                'title'         => $campaign->title, // عنوان الحملة العلوي
+                'title'         => $campaign->title, 
                 'org_name'      => $campaign->organization ? $campaign->organization->org_name : 'جمعية خيرية', // اسم المؤسسة تحت العنوان
-                'location'      => $campaign->location, // الموقع مثل: Hama, al furkan
+                'location'      => $campaign->location, 
                 'image_url'     => $campaign->image ? asset('storage/' . $campaign->image) : asset('storage/default-campaign.png'), // صورة الكرت
-                'rating'        => 5, // قيمة ثابتة 5 نجوم متل التصميم
-                'reviews_count' => 100, // ثابتة "100 Reviews" متل التصميم
+                'rating'        => 5, 
+                'reviews_count' => 100, 
             ];
         });
 
         return response()->json([
             'status'    => 'success',
             'message'   => 'تم جلب قائمة الحملات بنجاح',
-            'campaigns' => $campaigns // مصفوفة صافية بالحقول الستة فقط لا غير
+            'campaigns' => $campaigns 
         ], 200);
     }
-    // 2. تفاصيل الحملة بالكامل (مطابق لواجهات تفاصيل شاشة شجرة الحور والتطوع)
-    public function show($id)
-{
-    // 1. جلب الحملة مع المؤسسة التابعة لها
-    $campaign = Campaign::with('organization')->find($id);
+\   public function show($id)
+    {
+        $campaign = Campaign::with('organization')->find($id);
 
-    if (!$campaign) {
-        return response()->json([
-            'status'  => 'error',
-            'message' => 'الحملة المطلوبة غير موجودة'
-        ], 404);
-    }
+        if (!$campaign) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'الحملة المطلوبة غير موجودة'
+            ], 404);
+        }
 
-    // 2. حسابات المقاعد والنسبة المئوية لشريط التقدم (Progress Bar)
-    $needed = (int) $campaign->volunteers_needed;
-    $registered = (int) $campaign->volunteers_registered;
-    $remaining = max(0, $needed - $registered);
-    $percentage = $needed > 0 ? round(($registered / $needed) * 100) : 0;
+        $daysLeft = 0;
+        if ($campaign->end_date) {
+            $daysLeft = Carbon::now()->diffInDays(Carbon::parse($campaign->end_date), false);
+            $daysLeft = $daysLeft < 0 ? 0 : (int)$daysLeft;
+        }
 
-    // 3. عمل تنصيب وترتيب للحملات المقترحة بأسفل الواجهة (Featured Campaigns) - الصورة 3
-    // جلب أحدث 3 حملات نشطة لنفس المؤسسة أو بشكل عام مع استبعاد الحملة الحالية
-    $featuredCampaigns = Campaign::where('status', 'active')
-        ->where('id', '!=', $campaign->id)
-        ->with('organization')
-        ->latest()
-        ->take(3)
-        ->get()
-        ->map(function ($feat) {
-            return [
-                'id'            => $feat->id,
-                'title'         => $feat->title,
-                'org_name'      => $feat->organization ? $feat->organization->org_name :'',
-                'location'      => $feat->location,
-                'image_url'     => $feat->image ? asset('storage/' . $feat->image) : asset('storage/default-campaign.png'),
-                'rating'        => 5,
-                'reviews_count' => 100,
-            ];
-        });
+        $featuredCampaigns = Campaign::where('status', 'active')
+            ->where('id', '!=', $campaign->id)
+            ->with('organization')
+            ->latest()
+            ->take(3)
+            ->get()
+            ->map(function ($feat) {
+                return [
+                    'id'            => $feat->id,
+                    'title'         => $feat->title,
+                    'category'      => $feat->category ?? 'volunteer',
+                    'org_name'      => $feat->organization ? $feat->organization->org_name : 'مؤسسة أثر',
+                    'location'      => $feat->location,
+                    'image_url'     => $feat->image ? asset('storage/' . $feat->image) : asset('storage/default-campaign.png'),
+                    'rating'        => 5,
+                    'reviews_count' => 100,
+                ];
+            });
 
-    // 4. بناء الـ JSON الشامل المطابق للهيكلية الرسومية بالصور مية بالمية
-    return response()->json([
-        'status' => 'success',
-        'data'   => [
-            
-            // القسم العلوي وقسم الـ About (الصورة 1 و 2)
-            'campaign_details' => [
-                'id'                    => $campaign->id,
-                'title'                 => $campaign->title, // Tree Planting Campaign
-                'type'                  => $campaign->type,   // on-ground / remote
-                'date'                  => Carbon::parse($campaign->start_date)->format('d/m/Y'), // صيغة التاريخ: 23/5/2026
-                'time'                  => Carbon::parse($campaign->time)->format('g:i A'),       // صيغة الوقت: 9:00 AM
-                'location'              => $campaign->location,       // Aleppo, The Public Park
-                'meeting_point'         => $campaign->meeting_point,  // نقطة التجمع عند الحاجة
-                'image_url'             => $campaign->image ? asset('storage/' . $campaign->image) : asset('storage/default-campaign.png'),
-                'rating'                => 5,
-                'reviews_count'         => 100,
+        $data = [
+            'id'            => $campaign->id,
+            'title'         => $campaign->title,
+            'category'      => $campaign->category ?? 'volunteer', 
+            'location'      => $campaign->location,
+            'image_url'     => $campaign->image ? asset('storage/' . $campaign->image) : asset('storage/default-campaign.png'),
+            'rating'        => 5,
+            'reviews_count' => 100,
+            'days_left'     => $daysLeft,
+            'about'         => $campaign->about, 
+        ];
+
+        if ($campaign->category === 'donation') {
+            $donationFields = [
+                'donation_goal'     => (float) ($campaign->donation_goal ?? 10000.00),
+                'raised_amount'     => (float) ($campaign->raised_amount ?? 0.00),
+                'donors_count'      => (int) ($campaign->donors_count ?? 0),
                 
-                // الإحصائيات والأرقام الخاصة بالـ Progress Bar السفلي (الصورة 1)
+                'donation_benefits' => $campaign->donation_benefits ?? "• Provide Food Baskets To Families.\n• Support Medical Treatments.\n• Supply School Materials.\n• Improve Living Conditions.",
+                
+                'donation_impact'   => [
+                    ['amount' => '$10', 'label' => 'Feed One Family'],
+                    ['amount' => '$25', 'label' => 'School Supplies'],
+                    ['amount' => '$50', 'label' => 'Medical Assistance'],
+                    ['amount' => '$100', 'label' => 'Emergency Support'],
+                ]
+            ];
+            $data = array_merge($data, $donationFields);
+        } else {
+            $needed     = (int) $campaign->volunteers_needed;
+            $registered = (int) $campaign->volunteers_registered;
+            $remaining  = max(0, $needed - $registered);
+
+            $volunteerFields = [
+                'type'                  => $campaign->type,
+                'date'                  => Carbon::parse($campaign->start_date)->format('d/m/Y'),
+                'time'                  => $campaign->time ? Carbon::parse($campaign->time)->format('g:i A') : null,
+                'meeting_point'         => $campaign->meeting_point,
                 'volunteers_needed'     => $needed,
                 'volunteers_registered' => $registered,
                 'volunteers_remaining'  => $remaining,
+
+                'requirements'          => $campaign->requirements ?? "• Plant Trees In Designated Areas.\n• Assist With Tools And Activity Preparation.\n• Help Clean And Organize The Area.",
+                'responsibilities'      => $campaign->responsibilities ?? "• Follow The Team Leader Instructions.\n• Respect The Environment And Protect Trees.\n• Complete Assigned Tasks.\n• Cooperate With Other Volunteers.",
+                'important_notes'       => $campaign->important_notes ?? "• Wear Comfortable Clothes And Closed Shoes.\n• Arrive On Time.\n• Bring Water If Needed.\n• Stay In The Assigned Area.",
+            ];
+            $data = array_merge($data, $volunteerFields);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => [
+                'campaign_details'   => $data,
                 
-                // النصوص والوصف (الصورة 2)
-                'about'                 => $campaign->about, // نص شرح الحملة كامل
-                // حقل المتطلبات: يمكنك وضع نص افتراضي فخم إذا لم تكن قد أضفته بالـ Migration لسا كرمال الواجهة تثبت
-                'requirements'          => "• Plant Trees In Designated Areas.\n• Assist With Tools And Activity Preparation.\n• Help Clean And Organize The Area.",
-            ],
+                'organization' => [
+                    'id'          => $campaign->organization ? $campaign->organization->id : null,
+                    'name'        => $campaign->organization ? $campaign->organization->org_name : 'The Lifa Organization',
+                    'logo_url'    => ($campaign->organization && $campaign->organization->logo) ? asset('storage/' . $campaign->organization->logo) : asset('storage/default-org.png'),
+                    'address'     => $campaign->organization ? $campaign->organization->address : 'Hama, al furkan',
+                    'website_url' => 'https://www.thelife.com', 
+                ],
 
-            // كرت معلومات المؤسسة الجانبي (الصورة 2 على اليمين)
-            'organization' => [
-                'id'          => $campaign->organization ? $campaign->organization->id : null,
-                'name'        => $campaign->organization ? $campaign->organization->org_name : 'The Lifa Organization',
-                'logo_url'    => ($campaign->organization && $campaign->organization->logo) ? asset('storage/' . $campaign->organization->logo) : asset('storage/default-org.png'),
-                'address'     => $campaign->organization ? $campaign->organization->address : 'Hama, al furkan',
-                'website_url' => 'https://www.thelife.com', // زر الـ View Organization الأصفر
-            ],
+                'contact_us' => [
+                    'phone'   => $campaign->organization ? $campaign->organization->phone_number : '+963-906-156-2849',
+                    'email'   => $campaign->organization ? $campaign->organization->official_email : 'Athar@gmail.com',
+                    'address' => $campaign->organization ? $campaign->organization->address : 'Syria-Aleppo',
+                ],
 
-            // قسم الـ Contact Us الثابت على اليمين (الصورة 3)
-            'contact_us' => [
-                'phone'   => $campaign->organization ? $campaign->organization->phone_number : '',
-                'email'   => $campaign->organization ? $campaign->organization->official_email : '',
-                'address' => $campaign->organization ? $campaign->organization->address : '',
-            ],
-
-            // مصفوفة الكروت السفلية للحملات المقترحة (Featured Campaigns) - الصورة 3 يساراً
-            'featured_campaigns' => $featuredCampaigns
-        ]
-    ], 200);
-}
-    // 3. جلب أسئلة الاختبار الخاصة بالحملة
+                'featured_campaigns' => $featuredCampaigns
+            ]
+        ], 200);
+    }
     public function getQuiz($id)
     {
         $campaign = Campaign::find($id);
@@ -152,15 +168,12 @@ class CampaignController extends Controller
         return response()->json(['questions' => $questions], 200);
     }
 
-    // 4. إرسال إجابات الاختبار وحساب النتيجة (تحديد ناجح/راسب بناءً على 70%)
     public function submitQuiz(Request $request, $id)
 {
-    // 1. استخدام كلاس Validator يدوياً للتحقق من البيانات المدخلة
     $validator = Validator::make($request->all(), [
-        'answers' => 'required|array', // مصفوفة تحتوي على [question_id => selected_option]
+        'answers' => 'required|array',
     ]);
 
-    // إذا فشل التحقق، يتم إرجاع الأخطاء مخصصة فوراً بنمط JSON وبكود 422
     if ($validator->fails()) {
         return response()->json([
             'status'  => 'error',
@@ -169,7 +182,6 @@ class CampaignController extends Controller
         ], 422);
     }
 
-    // 2. جلب الحملة مع الأسئلة التقييمية الخاصة بها
     $campaign = Campaign::with('questions')->find($id);
     if (!$campaign) {
         return response()->json([
@@ -188,37 +200,30 @@ class CampaignController extends Controller
 
     $correctAnswersCount = 0;
 
-    // 3. مقارنة إجابات المتطوع بالأجوبة الصحيحة في قاعدة البيانات بطريقة آمنة
     foreach ($campaign->questions as $question) {
-        // التشييك لضمان عدم حدوث خطأ (Undefined index) إذا لم يرسل المتطوع إجابة على هذا السؤال المحدد
         if (isset($request->answers[$question->id])) {
             $userAnswer = $request->answers[$question->id];
             
-            // تنظيف الحروف ومقارنتها للتأكد من التطابق (مثلاً: 'A ' تساوي 'a')
             if (trim(strtolower($userAnswer)) === trim(strtolower($question->correct_option))) {
                 $correctAnswersCount++;
             }
         }
     }
 
-    // 4. حساب النسبة المئوية للنجاح
     $scorePercentage = round(($correctAnswersCount / $totalQuestions) * 100);
-    $passed = $scorePercentage >= 70; // حد النجاح الافتراضي 70%
+    $passed = $scorePercentage >= 70; 
 
-    // 5. تحديث أو إنشاء طلب التقديم في قاعدة البيانات (Campaign Application)
     $application = CampaignApplication::updateOrCreate(
         [
-            'volunteer_id'     => auth()->id(), // معرف المتطوع الحالي المسجل دخول من التوكن
+            'volunteer_id'     => auth()->id(), 
             'campaign_id' => $campaign->id,
         ],
         [
             'score'  => $scorePercentage,
             'status' => $passed ? 'passed' : 'failed',
-            // 'submitted_at' => now() // فك الكومنت عن هذا السطر إذا كان الحقل متاحاً في جدولك ومختلفاً عن created_at
         ]
     );
 
-    // 6. إرجاع النتيجة منسقة ونظيفة ومطابقة تماماً لمتطلبات الفرونت إند
     return response()->json([
         'status'  => 'success',
         'message' => $passed ? 'مبروك! لقد اجتزت الاختبار بنجاح.' : 'للأسف، لم تحقق الحد الأدنى لعلامة النجاح.',
@@ -231,4 +236,78 @@ class CampaignController extends Controller
             'total_questions'    => $totalQuestions
         ]
     ], 200);
-}}
+}
+
+public function myApplications()
+    {
+        $volunteerId = auth()->id();
+
+        $applications = CampaignApplication::where('volunteer_id', $volunteerId)
+            ->with(['campaign.organization'])
+            ->latest()
+            ->get()
+            ->map(function ($app) {
+                return [
+                    'application_id'     => $app->id,
+                    'score'              => $app->score,
+                    'status'             => $app->status, // passed, failed, pending
+                    'campaign_id'        => $app->campaign ? $app->campaign->id : null,
+                    'campaign_title'     => $app->campaign ? $app->campaign->title : 'حملة محذوفة',
+                    'organization_name'  => ($app->campaign && $app->campaign->organization) ? $app->campaign->organization->org_name : 'مؤسسة غير معروفة',
+                    'location'           => $app->campaign ? $app->campaign->location : 'غير محدد',
+                    'image_url'          => ($app->campaign && $app->campaign->image) ? asset('storage/' . $app->campaign->image) : asset('storage/default-campaign.png'),
+                ];
+            });
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'تم جلب طلباتك بنجاح',
+            'data'    => $applications
+        ], 200);
+    }
+
+   
+    public function showApplication($application_id)
+    {
+        $application = CampaignApplication::where('volunteer_id', auth()->id())
+            ->with(['campaign.organization'])
+            ->find($application_id);
+
+        if (!$application) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'طلب التقديم المطلوب غير موجود أو لا تملك صلاحية للوصول إليه'
+            ], 404);
+        }
+
+        $statusText = 'Under Review';
+        if ($application->status === 'pending') {
+            $statusText = 'Pending, Under Review';
+        } elseif ($application->status === 'approved' || $application->status === 'passed') {
+            $statusText = 'Approved, Passed';
+        } elseif ($application->status === 'rejected' || $application->status === 'failed') {
+            $statusText = 'Rejected, Failed';
+        }
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'تم جلب تفاصيل الطلب بنجاح',
+            'data'    => [
+                'application_id'     => $application->id,
+                
+                'current_status'     => $statusText, 
+                'status_raw'         => $application->status, 
+                
+                'organization_name'  => $application->campaign->organization->org_name, 
+                
+                'campaign_title'     => $application->campaign->title, 
+                
+                'location'           => $application->campaign->location, 
+                
+                'submitted_on'       => Carbon::parse($application->created_at)->format('Y/m/d'), 
+            ]
+        ], 200);
+    }
+
+    
+}

@@ -12,6 +12,11 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use App\Notifications\VerifyEmailNotification;
+use App\Models\CampaignApplication;
+use App\Models\Campaign;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+
 class AuthController extends Controller
 {
    public function register(Request $request)
@@ -331,4 +336,95 @@ public function getCertificates()
         'certificates' => $certificates
     ], 200);
 }
-}
+
+
+
+public function getDashboardData(Request $request)
+    {
+        $volunteer = $request->user(); 
+        if (!$volunteer) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'المتطوع غير مسجل أو التوكن غير صحيح.'
+            ], 401);
+        }
+
+        $volunteerId = $volunteer->id;
+        $volunteerName = $volunteer->full_name ?? 'متطوع أثر'; 
+
+        $volunteerHours = DB::table('campaign_volunteer')
+            ->where('volunteer_id', $volunteerId)
+            ->sum('hours_participated') ?? 0;
+        
+        $joinedCampaignsCount = DB::table('campaign_volunteer')
+            ->where('volunteer_id', $volunteerId)
+            ->count();
+        
+        $certificatesCount = DB::table('certificates')
+            ->where('volunteer_id', $volunteerId)
+            ->count();
+
+        $featuredCampaigns = Campaign::latest()
+            ->take(3)
+            ->get(['id', 'title', 'location', 'about', 'image', 'category'])
+            ->map(function ($campaign) {
+                return [
+                    'id'        => $campaign->id,
+                    'title'     => $campaign->title,
+                    'location'  => $campaign->location,
+                    'about'     => Str::limit($campaign->about, 100, '...'), 
+                    'category'  => $campaign->category,
+                    'image_url' => $campaign->image ? asset('storage/' . $campaign->image) : asset('storage/default-campaign.png'),
+                ];
+            });
+
+        $myActiveCampaigns = DB::table('campaign_volunteer')
+            ->where('volunteer_id', $volunteerId)
+            ->join('campaigns', 'campaign_volunteer.campaign_id', '=', 'campaigns.id')
+            ->latest('campaign_volunteer.created_at')
+            ->take(5)
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'campaign_title' => $item->title,
+                    'location'       => $item->location,
+                    'status'         => ucfirst($item->status),
+                    'date'           => \Carbon\Carbon::parse($item->created_at)->format('d/m/Y'),
+                ];
+            });
+
+        $notifications = $volunteer->notifications()
+            ->latest()
+            ->take(5)
+            ->get()
+            ->map(function ($notification) {
+                $dataArray = $notification->data;
+                if (is_string($dataArray)) {
+                    $dataArray = json_decode($dataArray, true) ?? [];
+                }
+                return [
+                    'id'               => $notification->id,
+                    'title'            => $dataArray['title'] ?? 'تحديث من أثر',
+                    'body'             => $dataArray['body'] ?? '',
+                    'created_at_human' => $notification->created_at->diffForHumans(),
+                ];
+            });
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'welcome_message' => "Welcome Back! " . $volunteerName,      
+                'impact' => [
+                    'volunteer_hours'  => $volunteerHours . ' Hours',
+                    'joined_campaigns' => $joinedCampaignsCount,
+                    'certificates'     => $certificatesCount,
+                ],
+                'featured_campaigns' => $featuredCampaigns,
+                'my_active_campaigns' => $myActiveCampaigns,
+                'notifications'       => $notifications
+            ]
+        ], 200);
+    }
+
+
+    }

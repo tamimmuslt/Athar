@@ -2,25 +2,43 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+// الكلاسات الأساسية لدعم التوكنات وعمليات تسجيل الدخول
+use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Laravel\Sanctum\HasApiTokens; 
+use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
-class Volunteer extends Model
+class Volunteer extends Authenticatable
 {
-    use HasFactory, Notifiable, HasApiTokens;
+    // تفعيل التوكنات والإشعارات للمتطوع
+    use HasApiTokens, HasFactory, Notifiable;
 
-    protected $fillable = [
+    /**
+     * الحقول القابلة للتعبئة (Mass Assignable)
+     * تأكد من مطابقتها للحقول الموجودة عندك بالـ Migration
+     */
+   protected $fillable = [
         'full_name', 'email', 'password', 'phone', 'city', 'bio', 'age',
         'gender', 'verification_code'
     ];
-
-    protected $hidden = [
+    /**
+     * الحقول المخفية عند تحويل الموديل إلى JSON
+     */
+   protected $hidden = [
         'password', 'verification_code',
     ];
 
-    // الحقل الجديد الحصري لطلبات المتطوع على الحملات والاختبارات
+    /**
+     * تحويل أنواع البيانات (Casting)
+     */
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'password' => 'hashed', // تشفير تلقائي لكلمة المرور عند الحفظ
+    ];
+
+    /**
+     * علاقة المتطوع مع أسئلة الكويز / طلبات التقديم
+     */
     public function applications()
     {
         return $this->hasMany(CampaignApplication::class, 'volunteer_id');
