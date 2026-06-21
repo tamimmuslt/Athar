@@ -378,6 +378,7 @@ public function getDashboardData(Request $request)
                 ];
             });
 
+        
         $myActiveCampaigns = DB::table('campaign_volunteer')
             ->where('volunteer_id', $volunteerId)
             ->join('campaigns', 'campaign_volunteer.campaign_id', '=', 'campaigns.id')
