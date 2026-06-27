@@ -26,7 +26,9 @@ COPY . .
 # تثبيت Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 RUN composer install --no-interaction --optimize-autoloader --no-dev
-
+RUN php artisan config:clear
+RUN php artisan route:clear
+RUN php artisan view:clear
 # إعطاء الصلاحيات لمجلدات التخزين
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
