@@ -9,6 +9,7 @@ use App\Http\Controllers\Volunteer\NotificationController;
 use App\Http\Controllers\Volunteer\OrganizationController;
 use App\Http\Controllers\Volunteer\CampaignController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\Api\CampaignReviewController;
 /*
 |--------------------------------------------------------------------------
 | Volunteer Routes (Public)
@@ -75,6 +76,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
 
         Route::post('notifications', [NotificationController::class, 'index']);
+
+        Route::post('/campaigns/{id}/review', [CampaignReviewController::class, 'store']);
 
 });
 });
