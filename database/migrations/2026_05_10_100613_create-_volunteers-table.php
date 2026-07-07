@@ -15,12 +15,12 @@ return new class extends Migration
         $table->id();
         $table->string('full_name'); // [cite: 15]
         $table->string('email')->unique(); // [cite: 11]
-        $table->string('password');
+        $table->string('password')->nullable();
         $table->string('phone')->nullable();
         $table->string('city')->nullable();
         $table->text('bio')->nullable();
         $table->string('profile_picture')->nullable();
-        $table->string('verification_code')->nullable(); // للمرحلة الثانية في الواجهة
+        $table->string('verification_code')->nullable(); 
         $table->timestamp('email_verified_at')->nullable();
         $table->timestamps();
     });

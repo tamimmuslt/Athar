@@ -11,11 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // هذا الجدول سيبقى للأدمن فقط
         Schema::create('users', function (Blueprint $table) {
             $table->id();
-            $table->string('name'); // اسم الأدمن
-            $table->string('email')->unique(); // إيميل الدخول للوحة التحكم
+            $table->string('name'); 
+            $table->string('email')->unique(); 
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->rememberToken();

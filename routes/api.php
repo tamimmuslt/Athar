@@ -17,7 +17,6 @@ use App\Http\Controllers\Api\CampaignReviewController;
 */
 Route::prefix('volunteer')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
-    Route::post('/verify-code', [AuthController::class, 'verifyCode']);
     Route::post('/resend-code', [AuthController::class, 'resendCode']);
     Route::post('/login', [AuthController::class, 'login']);
     Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
@@ -39,7 +38,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/hours', [AuthController::class, 'getVolunteerHours']); 
     Route::get('/certificates', [AuthController::class, 'getCertificates']);
         Route::get('/dashboard', [AuthController::class, 'getDashboardData']);        
-
+Route::post('/volunteer/verify-code', [AuthController::class, 'verifyCode']); 
+    Route::post('/volunteer/setup-password', [AuthController::class, 'setupPassword']); 
     // Notifications
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
@@ -69,7 +69,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // 4. جدول الحملات المنتهية والتقييم (التبويب الرابع)
     Route::get('my-campaigns/completed', [CampaignManagerController::class, 'completedCampaigns']);
     
-    // 5. جدول التبرعات المالية (التبويب الخامس)
     Route::get('my-campaigns/donations', [CampaignManagerController::class, 'donationCampaigns']);
 
     Route::post('reports/submit', [ReportController::class, 'store']);

@@ -19,64 +19,87 @@ use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
-   public function register(Request $request)
-{
-    $validator = Validator::make($request->all(), [
-        'full_name' => 'required|string',
-        'email' => 'required|email|unique:volunteers',
-        'password' => 'required|min:8',
-    ]);
+  public function register(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'full_name' => 'required|string|max:255',
+            'email'     => 'required|email|unique:volunteers,email',
+        ]);
 
-    if ($validator->fails()) {
-        return response()->json($validator->errors(), 422);
+        if ($validator->fails()) {
+            return response()->json($validator->errors(), 422);
+        }
+
+        $verificationCode = rand(100000, 999999);
+
+        $volunteer = Volunteer::create([
+            'full_name'         => $request->full_name,
+            'email'             => $request->email,
+            'password'          => null, 
+            'verification_code' => $verificationCode, 
+        ]);
+
+        $volunteer->notify(new VerifyEmailNotification($verificationCode));
+
+        $token = $volunteer->createToken('auth_token')->plainTextToken;
+
+        return response()->json([
+            'message'      => 'تم تسجيل البيانات الأولية بنجاح، يرجى التحقق من بريدك الإلكتروني',
+            'access_token' => $token,
+        ], 201);
     }
-
-    $verificationCode = rand(100000, 999999);
-
-    $volunteer = Volunteer::create([
-        'full_name' => $request->full_name,
-        'email' => $request->email,
-        'password' => Hash::make($request->password),
-        'verification_code' => $verificationCode, 
-    ]);
-
-$volunteer->notify(new VerifyEmailNotification($verificationCode));
-
-    return response()->json([
-        'message' => 'تم إنشاء الحساب بنجاح، يرجى التحقق من بريدك الإلكتروني',
-        'email' => $volunteer->email
-    ], 201);
-}
-
 
 public function verifyCode(Request $request)
-{
-    $request->validate([
-        'email' => 'required|email',
-        'code' => 'required|numeric',
-    ]);
+    {
+        $request->validate([
+            'code'  => 'required|numeric',
+        ]);
 
-    $volunteer = Volunteer::where('email', $request->email)
-                          ->where('verification_code', $request->code)
-                          ->first();
+        // جلب المستخدم الحالي مباشرة من التوكن
+        $volunteer = auth()->user(); 
 
-    if (!$volunteer) {
-        return response()->json(['message' => 'الكود غير صحيح أو الإيميل خاطئ'], 401);
+        if ($volunteer->verification_code != $request->code) {
+            return response()->json(['message' => 'الكود غير صحيح'], 401);
+        }
+
+        $volunteer->email_verified_at = now();
+        $volunteer->verification_code = null;
+        $volunteer->save();
+
+        return response()->json([
+            'message' => 'تم التحقق من الرمز بنجاح، يرجى الانتقال لتعيين كلمة المرور'
+        ], 200);
     }
 
-    $volunteer->email_verified_at = now();
-    $volunteer->verification_code = null;
-    $volunteer->save();
+    
+    public function setupPassword(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'password' => 'required|string|min:8|confirmed',
+        ]);
 
-    $token = $volunteer->createToken('auth_token')->plainTextToken;
-    $isProfileCompleted =!is_null(value: $volunteer->age) && !is_null($volunteer->gender);
-    return response()->json([
-        'message' => 'تم تفعيل الحساب بنجاح',
-        'is_profile_completed' => $isProfileCompleted, 
-        'access_token' => $token,
-        'user' => $volunteer
-    ], 200);
-}
+        if ($validator->fails()) {
+            return response()->json($validator->errors(), 422);
+        }
+
+        $volunteer = auth()->user();
+
+        if (is_null($volunteer->email_verified_at)) {
+            return response()->json(['message' => 'يرجى التحقق من البريد الإلكتروني أولاً'], 403);
+        }
+
+        $volunteer->update([
+            'password' => Hash::make($request->password)
+        ]);
+
+        $isProfileCompleted = !is_null($volunteer->age) && !is_null($volunteer->gender);
+
+        return response()->json([
+            'message'              => 'تم إعداد كلمة المرور بنجاح! أهلاً بك',
+            'is_profile_completed' => $isProfileCompleted, 
+            'user'                 => $volunteer
+        ], 200);
+    }
 
 
 public function resendCode(Request $request)
@@ -214,7 +237,7 @@ public function verifyResetCode(Request $request)
 
         $volunteer->update([
             'password'          => Hash::make($request->password),
-            'verification_code' => null, // تصفير الحقل للأمان لمنع إعادة استخدام الكود
+            'verification_code' => null,
         ]);
 
         return response()->json([
